@@ -1,0 +1,14 @@
+{
+  "name": "cuhk-exam-db-scripts",
+  "version": "1.0.0",
+  "description": "Scripts to import CUHK exam questions to Supabase",
+  "main": "upload-questions.js",
+  "scripts": {
+    "setup-db": "node setup-database.js",
+    "upload-questions": "node upload-questions.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.3",
+    "dotenv": "^16.3.1"
+  }
+} 

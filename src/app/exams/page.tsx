@@ -55,8 +55,7 @@ export default function ExamsPage() {
           </div>
           <nav>
             <ul className="flex space-x-6">
-              <li><Link href="/" className="hover:underline">Home</Link></li>
-              <li><Link href="/exams" className="hover:underline font-semibold">Exams</Link></li>
+              <li><Link href="/question-bank" className="hover:underline">Question Bank</Link></li>
               <li><Link href="/login" className="hover:underline">Login</Link></li>
             </ul>
           </nav>
@@ -68,89 +67,15 @@ export default function ExamsPage() {
         <div className="max-w-6xl mx-auto">
           <h1 className="text-3xl font-bold mb-8">Available Exams</h1>
           
-          {/* Filter and Search Section */}
-          <div className="mb-6 flex flex-col sm:flex-row gap-4 justify-between">
-            <div className="flex gap-4">
-              <select className="px-4 py-2 border rounded">
-                <option value="">All Subjects</option>
-                <option value="mathematics">Mathematics</option>
-                <option value="computer-science">Computer Science</option>
-                <option value="english">English</option>
-                <option value="physics">Physics</option>
-                <option value="history">History</option>
-              </select>
-              <select className="px-4 py-2 border rounded">
-                <option value="">All Status</option>
-                <option value="available">Available</option>
-                <option value="upcoming">Upcoming</option>
-                <option value="expired">Expired</option>
-              </select>
-            </div>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search exams..."
-                className="px-4 py-2 border rounded w-full sm:w-64"
-              />
-            </div>
-          </div>
-          
-          {/* Exams List */}
           <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Exam Title</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deadline</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {exams.map((exam) => (
-                  <tr key={exam.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{exam.title}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{exam.subject}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{exam.duration}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{exam.deadline}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span 
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          exam.status === 'Available' 
-                            ? 'bg-green-100 text-green-800' 
-                            : exam.status === 'Upcoming' 
-                              ? 'bg-yellow-100 text-yellow-800' 
-                              : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {exam.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {exam.status === 'Available' ? (
-                        <Link href={`/exams/${exam.id}`} className="text-red-600 hover:text-red-900">
-                          Take Exam
-                        </Link>
-                      ) : exam.status === 'Upcoming' ? (
-                        <span className="text-gray-400">Not Available Yet</span>
-                      ) : (
-                        <span className="text-gray-400">Expired</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="px-6 py-8 text-center">
+              <p className="text-lg text-gray-600 mb-6">
+                This feature is not currently available. Please use the Question Bank to practice.
+              </p>
+              <Link href="/question-bank" className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-md">
+                Go to Question Bank
+              </Link>
+            </div>
           </div>
         </div>
       </main>

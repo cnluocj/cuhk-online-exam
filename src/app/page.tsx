@@ -12,8 +12,8 @@ export default function Home() {
           </div>
           <nav>
             <ul className="flex space-x-6">
-              <li><Link href="/" className="hover:underline">Home</Link></li>
-              <li><Link href="/exams" className="hover:underline">Exams</Link></li>
+              <li><Link href="/question-bank" className="hover:underline">Question Bank</Link></li>
+              <li><Link href="/test-latex" className="hover:underline">LaTeX Test</Link></li>
               <li><Link href="/login" className="hover:underline">Login</Link></li>
             </ul>
           </nav>
@@ -25,39 +25,37 @@ export default function Home() {
         <div className="max-w-4xl mx-auto">
           <section className="mb-12 text-center">
             <h2 className="text-3xl font-bold mb-4">Welcome to the CUHK Online Examination Platform</h2>
-            <p className="text-xl mb-8">Your comprehensive solution for online assessments and examinations</p>
+            <p className="text-xl mb-8">Your comprehensive solution for math practice questions</p>
             <div className="flex justify-center gap-4">
-              <Link href="/login" className="bg-red-700 hover:bg-red-800 text-white font-bold py-3 px-6 rounded-lg transition-colors">
-                Start an Exam
+              <Link href="/question-bank" className="bg-red-700 hover:bg-red-800 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                Access Question Bank
               </Link>
-              <Link href="/register" className="border border-red-700 text-red-700 hover:bg-red-50 font-bold py-3 px-6 rounded-lg transition-colors">
-                Register
+              <Link href="/login" className="border border-red-700 text-red-700 hover:bg-red-50 font-bold py-3 px-6 rounded-lg transition-colors">
+                Login
               </Link>
             </div>
           </section>
 
-          <section className="grid md:grid-cols-3 gap-8 mb-12">
+          <section className="grid md:grid-cols-2 gap-8 mb-12">
             <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-xl font-semibold mb-3">Practice Tests</h3>
-              <p>Access a variety of practice exams to prepare for your assessments.</p>
+              <h3 className="text-xl font-semibold mb-3">Question Bank</h3>
+              <p className="mb-4">Browse our comprehensive collection of math practice questions with detailed solutions.</p>
+              <Link href="/question-bank" className="text-red-600 hover:underline">Explore question bank →</Link>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-xl font-semibold mb-3">Scheduled Exams</h3>
-              <p>View and take your scheduled examinations securely online.</p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-xl font-semibold mb-3">Performance Analytics</h3>
-              <p>Track your progress and view detailed performance metrics.</p>
+              <h3 className="text-xl font-semibold mb-3">LaTeX Testing</h3>
+              <p className="mb-4">Test mathematical expressions and equations with our LaTeX renderer.</p>
+              <Link href="/test-latex" className="text-red-600 hover:underline">Try LaTeX test page →</Link>
             </div>
           </section>
 
           <section className="bg-gray-50 p-8 rounded-lg">
             <h3 className="text-2xl font-semibold mb-4">How It Works</h3>
             <ol className="list-decimal list-inside space-y-4 pl-4">
-              <li>Register or log in to your student account</li>
-              <li>Browse available exams or access your scheduled assessments</li>
-              <li>Complete your exams within the allocated time</li>
-              <li>Submit your answers and receive immediate feedback when available</li>
+              <li>Browse the question bank by topics</li>
+              <li>Select a question to view and attempt</li>
+              <li>Use the "Show Answer" button to check solutions</li>
+              <li>Navigate between questions to practice different problems</li>
             </ol>
           </section>
         </div>

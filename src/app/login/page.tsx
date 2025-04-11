@@ -11,8 +11,7 @@ export default function LoginPage() {
           </div>
           <nav>
             <ul className="flex space-x-6">
-              <li><Link href="/" className="hover:underline">Home</Link></li>
-              <li><Link href="/exams" className="hover:underline">Exams</Link></li>
+              <li><Link href="/question-bank" className="hover:underline">Question Bank</Link></li>
               <li><Link href="/login" className="hover:underline font-semibold">Login</Link></li>
             </ul>
           </nav>
