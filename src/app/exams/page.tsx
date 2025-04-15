@@ -1,50 +1,8 @@
+"use client";
+
 import Link from "next/link";
 
-// Sample exam data
-const exams = [
-  {
-    id: 1,
-    title: "Mathematics Midterm",
-    subject: "Mathematics",
-    duration: "2 hours",
-    deadline: "2023-05-15",
-    status: "Available",
-  },
-  {
-    id: 2,
-    title: "Introduction to Computer Science",
-    subject: "Computer Science",
-    duration: "3 hours",
-    deadline: "2023-05-20",
-    status: "Available",
-  },
-  {
-    id: 3,
-    title: "English Literature",
-    subject: "English",
-    duration: "1.5 hours",
-    deadline: "2023-05-10",
-    status: "Expired",
-  },
-  {
-    id: 4,
-    title: "Physics Final Exam",
-    subject: "Physics",
-    duration: "2.5 hours",
-    deadline: "2023-06-01",
-    status: "Upcoming",
-  },
-  {
-    id: 5,
-    title: "History of China",
-    subject: "History",
-    duration: "2 hours",
-    deadline: "2023-05-25",
-    status: "Available",
-  },
-];
-
-export default function ExamsPage() {
+export default function Exams() {
   return (
     <div className="flex min-h-screen flex-col">
       {/* Header */}
@@ -64,33 +22,30 @@ export default function ExamsPage() {
 
       {/* Main Content */}
       <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8">Available Exams</h1>
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-3xl font-bold mb-6">Online Exams</h1>
           
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="px-6 py-8 text-center">
-              <p className="text-lg text-gray-600 mb-6">
-                This feature is not currently available. Please use the Question Bank to practice.
-              </p>
-              <Link href="/question-bank" className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-md">
-                Go to Question Bank
-              </Link>
-            </div>
+          <div className="bg-white p-6 rounded-lg shadow mb-8">
+            <h2 className="text-xl font-semibold mb-4">Exams have been moved to Question Bank</h2>
+            <p className="mb-4">
+              Please visit the Question Bank page to access all exam materials.
+            </p>
+            <Link 
+              href="/question-bank" 
+              className="inline-block bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
+            >
+              Go to Question Bank
+            </Link>
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="bg-gray-100 py-6">
+      <footer className="bg-gray-100 py-4">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-600">© {new Date().getFullYear()} CUHK Online Exam Platform</p>
-            <div className="flex space-x-4 mt-4 md:mt-0">
-              <Link href="/about" className="text-gray-600 hover:text-gray-900">About</Link>
-              <Link href="/contact" className="text-gray-600 hover:text-gray-900">Contact</Link>
-              <Link href="/privacy" className="text-gray-600 hover:text-gray-900">Privacy Policy</Link>
-            </div>
-          </div>
+          <p className="text-center text-gray-600 text-sm">
+            © {new Date().getFullYear()} CUHK Online Exam Platform
+          </p>
         </div>
       </footer>
     </div>

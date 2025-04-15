@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 
 export default function Home() {
@@ -8,58 +7,93 @@ export default function Home() {
       <header className="bg-red-700 text-white shadow-md">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold">CUHK Online Exam Platform</h1>
+            <Link href="/" className="text-xl font-bold">CUHK Online Exam Platform</Link>
           </div>
           <nav>
             <ul className="flex space-x-6">
               <li><Link href="/question-bank" className="hover:underline">Question Bank</Link></li>
-              <li><Link href="/test-latex" className="hover:underline">LaTeX Test</Link></li>
               <li><Link href="/login" className="hover:underline">Login</Link></li>
             </ul>
           </nav>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <section className="mb-12 text-center">
-            <h2 className="text-3xl font-bold mb-4">Welcome to the CUHK Online Examination Platform</h2>
-            <p className="text-xl mb-8">Your comprehensive solution for math practice questions</p>
-            <div className="flex justify-center gap-4">
-              <Link href="/question-bank" className="bg-red-700 hover:bg-red-800 text-white font-bold py-3 px-6 rounded-lg transition-colors">
-                Access Question Bank
+      {/* Hero Section */}
+      <section className="bg-gradient-to-b from-red-700 to-red-800 text-white py-16">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto text-center">
+            <h1 className="text-4xl md:text-5xl font-bold mb-6">Welcome to CUHK Online Exam Platform</h1>
+            <p className="text-xl mb-8">Preparing for your exams has never been easier. Access our comprehensive math question bank to enhance your learning.</p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link 
+                href="/question-bank" 
+                className="bg-white text-red-700 hover:bg-gray-100 font-semibold py-3 px-6 rounded-md shadow-md"
+              >
+                Explore Question Bank
               </Link>
-              <Link href="/login" className="border border-red-700 text-red-700 hover:bg-red-50 font-bold py-3 px-6 rounded-lg transition-colors">
+              <Link 
+                href="/login" 
+                className="border-2 border-white text-white hover:bg-white hover:text-red-700 font-semibold py-3 px-6 rounded-md"
+              >
                 Login
               </Link>
             </div>
-          </section>
-
-          <section className="grid md:grid-cols-2 gap-8 mb-12">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-xl font-semibold mb-3">Question Bank</h3>
-              <p className="mb-4">Browse our comprehensive collection of math practice questions with detailed solutions.</p>
-              <Link href="/question-bank" className="text-red-600 hover:underline">Explore question bank →</Link>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-xl font-semibold mb-3">LaTeX Testing</h3>
-              <p className="mb-4">Test mathematical expressions and equations with our LaTeX renderer.</p>
-              <Link href="/test-latex" className="text-red-600 hover:underline">Try LaTeX test page →</Link>
-            </div>
-          </section>
-
-          <section className="bg-gray-50 p-8 rounded-lg">
-            <h3 className="text-2xl font-semibold mb-4">How It Works</h3>
-            <ol className="list-decimal list-inside space-y-4 pl-4">
-              <li>Browse the question bank by topics</li>
-              <li>Select a question to view and attempt</li>
-              <li>Use the "Show Answer" button to check solutions</li>
-              <li>Navigate between questions to practice different problems</li>
-            </ol>
-          </section>
+          </div>
         </div>
-      </main>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center mb-12">Platform Features</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="bg-white p-8 rounded-lg shadow-md">
+              <div className="text-red-600 text-4xl mb-4">📚</div>
+              <h3 className="text-xl font-semibold mb-3">Extensive Question Bank</h3>
+              <p className="text-gray-600">Access a vast collection of math questions with detailed solutions to enhance your learning experience.</p>
+            </div>
+            <div className="bg-white p-8 rounded-lg shadow-md">
+              <div className="text-red-600 text-4xl mb-4">🌐</div>
+              <h3 className="text-xl font-semibold mb-3">Bilingual Support</h3>
+              <p className="text-gray-600">Switch between English and Chinese versions of questions to better understand the concepts.</p>
+            </div>
+            <div className="bg-white p-8 rounded-lg shadow-md">
+              <div className="text-red-600 text-4xl mb-4">📝</div>
+              <h3 className="text-xl font-semibold mb-3">Interactive Learning</h3>
+              <p className="text-gray-600">Practice with interactive questions and see detailed answers to improve your understanding and skills.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-16 bg-red-700 text-white">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-3xl font-bold mb-6">Ready to Get Started?</h2>
+          <p className="text-xl mb-8">Join thousands of students who are already using our platform to improve their academic performance.</p>
+          <Link 
+            href="/question-bank" 
+            className="bg-white text-red-700 hover:bg-gray-100 font-semibold py-3 px-8 rounded-md shadow-md"
+          >
+            Start Learning Now
+          </Link>
+        </div>
+      </section>
+
+      {/* Testimonial Section */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center mb-12">What Our Users Say</h2>
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-gray-50 p-8 rounded-lg shadow-sm mb-8">
+              <p className="text-gray-700 mb-4 text-lg italic">
+                &ldquo;This platform has been instrumental in helping me prepare for my exams. The ability to switch between languages and see detailed solutions has improved my understanding significantly.&rdquo;
+              </p>
+              <p className="font-semibold">- Sarah, Year 3 Student</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Footer */}
       <footer className="bg-gray-100 py-6">

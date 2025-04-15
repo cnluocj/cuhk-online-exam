@@ -1,21 +1,20 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import supabase from '@/utils/supabase';
 import MathJaxContent from '@/components/MathJaxContent';
+import { use } from 'react';
 
-// MathJax全局类型声明
-declare global {
-  interface Window {
-    MathJax?: {
-      typeset?: () => void;
-      Hub?: {
-        Queue: (args: any[]) => void;
-      };
+// Define a type for Window with MathJax for this component
+interface WindowWithMathJax extends Window {
+  MathJax?: {
+    typeset?: () => void;
+    Hub?: {
+      Queue: (args: unknown[]) => void;
     };
-  }
+  };
 }
 
 // 类型定义
@@ -39,10 +38,15 @@ interface Topic {
   display_name: string;
 }
 
+// Define the type for params
+type Params = Promise<{ topicId: string; questionNumber: string }>;
+
 // 将组件分为两部分，外部组件获取params，内部组件处理实际逻辑
-export default function QuestionPageWrapper({ params }: { params: { topicId: string; questionNumber: string } }) {
-  // 这里不需要直接访问params属性，而是将整个params对象传递给内部组件
-  return <QuestionPage topicId={params.topicId} questionNumber={params.questionNumber} />;
+export default function QuestionPageWrapper({ params }: { params: Params }) {
+  // Use the React.use() function to unwrap the Promise
+  const unwrappedParams = use(params);
+  // 将解析后的参数传递给内部组件
+  return <QuestionPage topicId={unwrappedParams.topicId} questionNumber={unwrappedParams.questionNumber} />;
 }
 
 // 内部组件接收已经解析好的props
@@ -59,9 +63,6 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
   const [error, setError] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [language, setLanguage] = useState<'English' | 'Chinese'>('English');
-
-  // 删除不需要的MathJax处理状态
-  // const mathJaxLoaded = useRef(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -139,31 +140,6 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
     fetchData();
   }, [topicIdNum, currentQuestionNumber, language]);
 
-  // 删除重复的MathJax处理效果，因为我们现在使用MathJaxContent组件
-  /*
-  useEffect(() => {
-    // 检查MathJax是否已加载
-    if (window.MathJax && !loading && (question || (showAnswer && answer))) {
-      // 如果MathJax已经初始化过
-      if (window.MathJax.typeset) {
-        try {
-          // 重新渲染页面上的所有LaTeX
-          window.MathJax.typeset();
-        } catch (e) {
-          console.error('MathJax渲染错误:', e);
-        }
-      } else if (window.MathJax.Hub) {
-        // 对于MathJax 2.x版本
-        try {
-          window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub]);
-        } catch (e) {
-          console.error('MathJax 2.x渲染错误:', e);
-        }
-      }
-    }
-  }, [question, answer, showAnswer, loading]);
-  */
-
   // Switch language
   const toggleLanguage = () => {
     setLanguage(prev => prev === 'English' ? 'Chinese' : 'English');
@@ -190,25 +166,16 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
     // Add a small delay and then force MathJax to reprocess the page
     // This helps ensure proper rendering when showing/hiding answers
     setTimeout(() => {
-      const MathJax = (window as any).MathJax;
+      const MathJax = (window as WindowWithMathJax).MathJax;
       if (MathJax && typeof MathJax.typeset === 'function') {
         try {
           MathJax.typeset();
-        } catch (e) {
-          console.error('Error reprocessing MathJax:', e);
+        } catch (error) {
+          console.error('Error reprocessing MathJax:', error);
         }
       }
     }, 50);
   };
-
-  // 不再需要单独的renderLaTeX函数
-  /*
-  const renderLaTeX = (content: string) => {
-    return (
-      <div dangerouslySetInnerHTML={{ __html: content }} className="mathjax-content" />
-    );
-  };
-  */
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -354,4 +321,4 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
       </footer>
     </div>
   );
-} 
+}

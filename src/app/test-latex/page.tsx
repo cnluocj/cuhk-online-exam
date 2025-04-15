@@ -55,16 +55,14 @@ export default function TestLatexPage() {
     </div>`
   );
 
-  const [testContent, setTestContent] = useState<string>(
-    `<p>It is given that the straight line $L$ passes through the points $A(2,3)$ and $B(7,8)$. Find the equation of $L$.</p>
+  const exampleContent = `<p>It is given that the straight line $L$ passes through the points $A(2,3)$ and $B(7,8)$. Find the equation of $L$.</p>
     <p>Solution: Given that line $L$ passes through points $A(2,3)$ and $B(7,8)$, find the equation of line $L$.</p>
     <p>Two-point form of line equation: $\\frac{x-x_1}{x_2-x_1} = \\frac{y-y_1}{y_2-y_1}$</p>
     <p>Substituting $A(2,3)$ and $B(7,8)$: $\\frac{x-2}{7-2} = \\frac{y-3}{8-3}$</p>
     <p>Simplify: $\\frac{x-2}{5} = \\frac{y-3}{5}$</p>
     <p>$\\Rightarrow x-2 = y-3$</p>
     <p>$\\Rightarrow x - y = -1$</p>
-    <p>Therefore, the equation of line $L$ is $x - y = -1$ or $x - y + 1 = 0$</p>`
-  );
+    <p>Therefore, the equation of line $L$ is $x - y = -1$ or $x - y + 1 = 0$</p>`;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -98,7 +96,7 @@ export default function TestLatexPage() {
           <div className="bg-white p-6 rounded-lg shadow-md mb-6">
             <h2 className="text-xl font-semibold mb-4">Example 2 (Simple Math Formulas)</h2>
             <div className="py-2 text-lg">
-              <MathJaxContent content={testContent} />
+              <MathJaxContent content={exampleContent} />
             </div>
           </div>
 

@@ -2,10 +2,26 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+// Define a global MathJax interface
+interface MathJaxObject {
+  typeset?: (elements?: HTMLElement[]) => void;
+  typesetClear?: (elements?: HTMLElement[]) => void;
+  Hub?: {
+    Queue: (args: unknown[]) => void;
+  };
+}
+
 interface MathJaxContentProps {
   content: string;
   className?: string;
   id?: string; // Add an ID to distinguish different instances
+}
+
+// Extend Window interface to include MathJax
+declare global {
+  interface Window {
+    MathJax?: MathJaxObject;
+  }
 }
 
 export default function MathJaxContent({ content, className = "", id = "math-content" }: MathJaxContentProps) {
@@ -52,8 +68,7 @@ export default function MathJaxContent({ content, className = "", id = "math-con
     setRenderError(null);
     
     if (isProcessed && contentRef.current) {
-      // Use type assertion to avoid TypeScript errors
-      const MathJax = (window as any).MathJax;
+      const MathJax = window.MathJax;
 
       if (MathJax) {
         try {
@@ -69,9 +84,9 @@ export default function MathJaxContent({ content, className = "", id = "math-con
             // MathJax v2
             MathJax.Hub.Queue(['Typeset', MathJax.Hub, contentRef.current]);
           }
-        } catch (e) {
-          console.error('MathJax渲染错误:', e);
-          setRenderError(e instanceof Error ? e.message : 'Error rendering LaTeX content');
+        } catch (error) {
+          console.error('MathJax rendering error:', error);
+          setRenderError(error instanceof Error ? error.message : 'Error rendering LaTeX content');
         }
       }
     }
@@ -79,12 +94,13 @@ export default function MathJaxContent({ content, className = "", id = "math-con
     // Add a fallback renderer that tries again after a short delay
     // This helps with cases where MathJax might not catch all elements on first pass
     const fallbackTimer = setTimeout(() => {
-      const MathJax = (window as any).MathJax;
+      const MathJax = window.MathJax;
       if (MathJax && MathJax.typeset && contentRef.current) {
         try {
           MathJax.typeset([contentRef.current]);
-        } catch (e) {
+        } catch (error) {
           // Silent catch - this is just a backup
+          console.debug('Fallback rendering attempt failed:', error);
         }
       }
     }, 500);
@@ -104,7 +120,7 @@ export default function MathJaxContent({ content, className = "", id = "math-con
       
       {renderError && (
         <div className="mt-2 p-2 bg-red-100 text-red-700 rounded text-sm">
-          <p className="font-semibold">渲染错误:</p>
+          <p className="font-semibold">Rendering Error:</p>
           <p>{renderError}</p>
         </div>
       )}

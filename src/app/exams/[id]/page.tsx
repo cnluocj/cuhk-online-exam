@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { use } from 'react';
 
 // Sample exam data (in a real app, this would come from an API)
 const examData = {
@@ -48,7 +49,20 @@ const examData = {
   ],
 };
 
-export default function ExamPage({ params }: { params: { id: string } }) {
+// Define the type for params
+type Params = Promise<{ id: string }>;
+
+// Create a wrapper component to handle the params Promise
+export default function ExamPageWrapper({ params }: { params: Params }) {
+  // Use the React.use() function to unwrap the Promise
+  const unwrappedParams = use(params);
+  // We use examData directly for now, but in the future we would fetch based on the ID
+  console.log(`Loading exam with ID: ${unwrappedParams.id}`);
+  return <ExamPage />;
+}
+
+// The main component now accepts unwrapped params
+function ExamPage() {
   const router = useRouter();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
@@ -62,6 +76,21 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     const secs = seconds % 60;
     return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
+
+  // Handle exam submission - wrapped in useCallback
+  const handleSubmit = useCallback(() => {
+    setIsSubmitting(true);
+    
+    // In a real app, you would send the answers to the server
+    console.log("Submitting answers:", selectedAnswers);
+    
+    // Simulate a submission delay
+    setTimeout(() => {
+      // Redirect to a results page or dashboard
+      alert("Exam submitted successfully!");
+      router.push("/exams");
+    }, 1500);
+  }, [router, selectedAnswers]);
 
   // Timer effect
   useEffect(() => {
@@ -78,7 +107,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [handleSubmit]);
 
   // Handle answer selection
   const handleAnswerSelect = (questionId: number, answer: string) => {
@@ -86,21 +115,6 @@ export default function ExamPage({ params }: { params: { id: string } }) {
       ...prev,
       [questionId]: answer,
     }));
-  };
-
-  // Handle exam submission
-  const handleSubmit = () => {
-    setIsSubmitting(true);
-    
-    // In a real app, you would send the answers to the server
-    console.log("Submitting answers:", selectedAnswers);
-    
-    // Simulate a submission delay
-    setTimeout(() => {
-      // Redirect to a results page or dashboard
-      alert("Exam submitted successfully!");
-      router.push("/exams");
-    }, 1500);
   };
 
   // Handle navigation between questions
