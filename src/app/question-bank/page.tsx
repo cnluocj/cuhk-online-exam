@@ -33,8 +33,8 @@ export default function QuestionBankPage() {
           try {
             const errorJson = await response.json();
             errorDetails = errorJson.error || errorJson.message || errorDetails;
-          } catch (parseError) {
-            // Ignore if response body isn't valid JSON
+          } catch {
+            // Ignore if response body isn't valid JSON - no variable needed
             console.warn('[Page] Could not parse error response JSON.');
           }
           throw new Error(errorDetails);
