@@ -3,10 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import supabase from '@/utils/supabase';
 
-// Question Bank type definition
-interface Topic {
+// Define the expected structure for a topic received from the API
+interface TopicWithCount {
   id: number;
   name: string;
   display_name: string;
@@ -16,53 +15,44 @@ interface Topic {
 
 export default function QuestionBankPage() {
   const router = useRouter();
-  const [topics, setTopics] = useState<Topic[]>([]);
+  const [topics, setTopics] = useState<TopicWithCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchTopics() {
+    async function fetchTopicsFromApi() {
+      setLoading(true);
+      setError(null);
+      console.log('[Page] Fetching topics from /api/topics...');
       try {
-        setLoading(true);
-        
-        // Get all topics
-        const { data: topicsData, error: topicsError } = await supabase
-          .from('topics')
-          .select('*')
-          .order('display_name');
-        
-        if (topicsError) {
-          throw topicsError;
+        const response = await fetch('/api/topics');
+
+        if (!response.ok) {
+          // Attempt to read error details from the response body
+          let errorDetails = `HTTP error! status: ${response.status}`;
+          try {
+            const errorJson = await response.json();
+            errorDetails = errorJson.error || errorJson.message || errorDetails;
+          } catch (parseError) {
+            // Ignore if response body isn't valid JSON
+            console.warn('[Page] Could not parse error response JSON.');
+          }
+          throw new Error(errorDetails);
         }
 
-        // Get question count for each topic (only count English versions, as Chinese and English versions are one-to-one)
-        const topicsWithQuestionCount = await Promise.all(
-          topicsData.map(async (topic) => {
-            const { count, error: countError } = await supabase
-              .from('questions')
-              .select('*', { count: 'exact', head: true })
-              .eq('topic_id', topic.id)
-              .eq('language', 'English');
-            
-            if (countError) {
-              console.error(`Error getting question count for topic ${topic.name}:`, countError);
-              return { ...topic, questionCount: 0 };
-            }
-            
-            return { ...topic, questionCount: count || 0 };
-          })
-        );
-        
-        setTopics(topicsWithQuestionCount);
+        const data: TopicWithCount[] = await response.json();
+        console.log('[Page] Topics fetched successfully from API.');
+        setTopics(data);
       } catch (err) {
-        console.error('Failed to fetch topic list:', err);
-        setError('Failed to fetch topic list, please try again later');
+        console.error('[Page] Error fetching topics from API:', err);
+        setError(err instanceof Error ? err.message : 'An unknown error occurred while fetching topics.');
       } finally {
+        console.log('[Page] Finished API topic fetch attempt.');
         setLoading(false);
       }
     }
-    
-    fetchTopics();
+
+    fetchTopicsFromApi();
   }, []);
 
   // Handle start practice button click
@@ -98,7 +88,8 @@ export default function QuestionBankPage() {
             </div>
           ) : error ? (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
+              <p className="font-bold">Error loading topics:</p>
+              <p>{error}</p> 
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow overflow-hidden">
