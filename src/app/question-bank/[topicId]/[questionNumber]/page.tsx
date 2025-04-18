@@ -3,9 +3,40 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import supabase from '@/utils/supabase';
 import MathJaxContent from '@/components/MathJaxContent';
 import { use } from 'react';
+
+// Define interfaces for the data structure received from the API
+interface Question {
+  id: number;
+  question_number: number;
+  content: string;
+  latex_content: string;
+  language: string;
+  topic_id: number;
+}
+
+interface Answer {
+  id: number;
+  content: string;
+  latex_content: string;
+  question_id: number;
+}
+
+interface Topic {
+  id: number;
+  name: string;
+  display_name: string;
+  chapter: string;
+}
+
+interface ApiResponseData {
+  topic: Topic;
+  question_english: Question | null;
+  question_chinese: Question | null;
+  answer: Answer | null;
+  totalQuestions: number;
+}
 
 // Define a type for Window with MathJax for this component
 interface WindowWithMathJax extends Window {
@@ -17,133 +48,105 @@ interface WindowWithMathJax extends Window {
   };
 }
 
-// 类型定义
-interface Question {
-  id: number;
-  question_number: number;
-  content: string;
-  latex_content: string;
-  language: string;
-}
-
-interface Answer {
-  id: number;
-  content: string;
-  latex_content: string;
-}
-
-interface Topic {
-  id: number;
-  name: string;
-  display_name: string;
-}
-
 // Define the type for params
 type Params = Promise<{ topicId: string; questionNumber: string }>;
 
-// 将组件分为两部分，外部组件获取params，内部组件处理实际逻辑
+// Wrapper component to handle the params Promise
 export default function QuestionPageWrapper({ params }: { params: Params }) {
-  // Use the React.use() function to unwrap the Promise
   const unwrappedParams = use(params);
-  // 将解析后的参数传递给内部组件
   return <QuestionPage topicId={unwrappedParams.topicId} questionNumber={unwrappedParams.questionNumber} />;
 }
 
-// 内部组件接收已经解析好的props
+// Inner component receiving unwrapped props
 function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNumber: string }) {
   const router = useRouter();
   const topicIdNum = parseInt(topicId);
   const currentQuestionNumber = parseInt(questionNumber);
-  
+
+  // State for the fetched data
   const [topic, setTopic] = useState<Topic | null>(null);
-  const [question, setQuestion] = useState<Question | null>(null);
+  const [questionEnglish, setQuestionEnglish] = useState<Question | null>(null);
+  const [questionChinese, setQuestionChinese] = useState<Question | null>(null);
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [totalQuestions, setTotalQuestions] = useState<number>(0);
+  
+  // State for UI control
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [language, setLanguage] = useState<'English' | 'Chinese'>('English');
 
+  // Fetch data from the API endpoint
   useEffect(() => {
-    async function fetchData() {
+    async function fetchDataFromApi() {
+      // Only refetch if topicId or questionNumber changes
+      setLoading(true);
+      setError(null);
+      setShowAnswer(false); // Hide answer when fetching new question
+      const logPrefix = `[Page /question-bank/${topicIdNum}/${currentQuestionNumber}]`;
+      console.log(`${logPrefix} Fetching data from API...`);
+      
       try {
-        setLoading(true);
-        setShowAnswer(false);
-        
-        // Get topic information
-        const { data: topicData, error: topicError } = await supabase
-          .from('topics')
-          .select('*')
-          .eq('id', topicIdNum)
-          .single();
-        
-        if (topicError) {
-          throw new Error(`Failed to get topic information: ${topicError.message}`);
+        const response = await fetch(`/api/question/${topicIdNum}/${currentQuestionNumber}`);
+
+        if (!response.ok) {
+          let errorDetails = `HTTP error! status: ${response.status}`;
+          try {
+            const errorJson = await response.json();
+            errorDetails = errorJson.error || errorJson.message || errorDetails;
+          } catch {
+            console.warn(`${logPrefix} Could not parse error response JSON.`);
+          }
+           // Special handling for 404 (invalid question number)
+           if (response.status === 404) {
+             errorDetails = `Question ${currentQuestionNumber} not found for this topic. ${errorDetails}`; 
+           }
+          throw new Error(errorDetails);
         }
-        
-        setTopic(topicData);
-        
-        // Get total question count
-        const { count, error: countError } = await supabase
-          .from('questions')
-          .select('*', { count: 'exact', head: true })
-          .eq('topic_id', topicIdNum)
-          .eq('language', 'English');
-        
-        if (countError) {
-          throw new Error(`Failed to get question count: ${countError.message}`);
-        }
-        
-        setTotalQuestions(count || 0);
-        
-        // Check if current question number is valid
-        if (count && (currentQuestionNumber < 1 || currentQuestionNumber > count)) {
-          throw new Error(`Invalid question number: ${currentQuestionNumber}`);
-        }
-        
-        // Get current question
-        const { data: questionData, error: questionError } = await supabase
-          .from('questions')
-          .select('*')
-          .eq('topic_id', topicIdNum)
-          .eq('question_number', currentQuestionNumber)
-          .eq('language', language)
-          .single();
-        
-        if (questionError) {
-          throw new Error(`Failed to get question: ${questionError.message}`);
-        }
-        
-        setQuestion(questionData);
-        
-        // Get answer
-        const { data: answerData, error: answerError } = await supabase
-          .from('answers')
-          .select('*')
-          .eq('question_id', questionData.id)
-          .single();
-        
-        if (answerError && answerError.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
-          throw new Error(`Failed to get answer: ${answerError.message}`);
-        }
-        
-        setAnswer(answerData || null);
-        
+
+        const data: ApiResponseData = await response.json();
+        console.log(`${logPrefix} Data fetched successfully from API.`);
+
+        // Update state with fetched data
+        setTopic(data.topic);
+        setQuestionEnglish(data.question_english);
+        setQuestionChinese(data.question_chinese);
+        setAnswer(data.answer);
+        setTotalQuestions(data.totalQuestions);
+
+        // Explicitly request MathJax processing after state update
+        requestMathJaxReprocess(); 
+
       } catch (err) {
-        console.error('Failed to fetch question data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch question data, please try again later');
+        console.error(`${logPrefix} Error fetching data from API:`, err);
+        setError(err instanceof Error ? err.message : 'An unknown error occurred while fetching question data.');
+        // Clear potentially stale data on error
+        setTopic(null);
+        setQuestionEnglish(null);
+        setQuestionChinese(null);
+        setAnswer(null);
+        setTotalQuestions(0);
       } finally {
+        console.log(`${logPrefix} Finished API data fetch attempt.`);
         setLoading(false);
       }
     }
-    
-    fetchData();
-  }, [topicIdNum, currentQuestionNumber, language]);
 
-  // Switch language
+    if (!isNaN(topicIdNum) && !isNaN(currentQuestionNumber)) {
+        fetchDataFromApi();
+    }
+    // Dependency array: only re-run when topicId or questionNumber changes
+  }, [topicIdNum, currentQuestionNumber]);
+
+  // Switch language (client-side toggle)
   const toggleLanguage = () => {
     setLanguage(prev => prev === 'English' ? 'Chinese' : 'English');
+    // MathJax re-rendering might be needed if content swaps immediately
+    requestMathJaxReprocess(); 
   };
+
+  // Determine the currently selected question based on language state
+  const currentQuestion = language === 'English' ? questionEnglish : questionChinese;
 
   // Go to next question
   const goToNextQuestion = () => {
@@ -159,23 +162,31 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
     }
   };
 
-  // Show or hide answer
-  const toggleShowAnswer = () => {
-    setShowAnswer(prev => !prev);
-    
-    // Add a small delay and then force MathJax to reprocess the page
-    // This helps ensure proper rendering when showing/hiding answers
+  // Helper function to request MathJax reprocessing
+  const requestMathJaxReprocess = () => {
     setTimeout(() => {
       const MathJax = (window as WindowWithMathJax).MathJax;
       if (MathJax && typeof MathJax.typeset === 'function') {
         try {
+          console.log('[Page] Requesting MathJax typeset...');
           MathJax.typeset();
         } catch (error) {
-          console.error('Error reprocessing MathJax:', error);
+          console.error('[Page] Error reprocessing MathJax:', error);
         }
       }
-    }, 50);
+    }, 50); // Short delay to allow potential DOM updates
+  }
+
+  // Show or hide answer
+  const toggleShowAnswer = () => {
+    setShowAnswer(prev => !prev); // Update state first
+    // Always request reprocessing after toggling answer visibility
+    requestMathJaxReprocess(); 
   };
+
+  // --- JSX Rendering --- 
+  // (Header and Footer remain the same)
+  // Main content uses state variables: loading, error, topic, currentQuestion, answer, totalQuestions
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -203,17 +214,25 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
             </div>
           ) : error ? (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              <p className="font-bold">Error loading question:</p>
               <p>{error}</p>
               <Link href="/question-bank" className="mt-2 inline-block text-red-700 underline">
-                Back to Question Bank
+                Back to Question Bank List
               </Link>
             </div>
+          ) : !topic || !currentQuestion ? ( // Handle case where data might be missing after loading
+             <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+                <p>Could not load question details. Please try again or return to the list.</p>
+                <Link href="/question-bank" className="mt-2 inline-block text-yellow-700 underline">
+                  Back to Question Bank List
+                </Link>
+             </div>
           ) : (
             <>
               {/* Title and Navigation */}
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h1 className="text-2xl font-bold">{topic?.display_name}</h1>
+                  <h1 className="text-2xl font-bold">{topic.display_name}</h1>
                   <p className="text-gray-600">
                     Question {currentQuestionNumber} / {totalQuestions}
                   </p>
@@ -237,15 +256,14 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
               {/* Question Content */}
               <div className="bg-white p-6 rounded-lg shadow-md mb-6">
                 <h2 className="text-xl font-semibold mb-4">Question {currentQuestionNumber}</h2>
-                {question && (
-                  <div className="py-2 text-lg">
-                    <MathJaxContent 
-                      content={question.latex_content} 
-                      id={`question-${question.id}`}
-                      key={`question-${question.id}-${language}`}
-                    />
-                  </div>
-                )}
+                 {/* Use currentQuestion which is derived from language state */}
+                <div className="py-2 text-lg">
+                  <MathJaxContent 
+                    content={currentQuestion.latex_content} 
+                    id={`question-${currentQuestion.id}`}
+                    key={`question-${currentQuestion.id}-${language}`} // Key changes on language swap to force re-render
+                  />
+                </div>
               </div>
 
               {/* Answer Area */}
@@ -255,6 +273,7 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
                   <button
                     onClick={toggleShowAnswer}
                     className="text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-md"
+                    disabled={!answer} // Disable if no answer exists
                   >
                     {showAnswer ? 'Hide Answer' : 'Show Answer'}
                   </button>
@@ -265,12 +284,12 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
                     <MathJaxContent 
                       content={answer.latex_content} 
                       id={`answer-${answer.id}`}
-                      key={`answer-${answer.id}`}
+                      key={`answer-${answer.id}`} // Key ensures re-render if needed
                     />
                   </div>
                 ) : (
                   <div className="py-8 text-center text-gray-500">
-                    {showAnswer ? 'No answer available' : 'Click "Show Answer" button to view the solution'}
+                    {showAnswer ? 'No answer available' : 'Click "Show Answer" to view the solution'}
                   </div>
                 )}
               </div>
