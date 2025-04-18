@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import supabase from '@/utils/supabase';
 
 // Define interfaces for the data structure
@@ -38,28 +38,36 @@ interface ErrorResponse {
   details?: string;
 }
 
-// Define the context type including params
-interface RouteContext {
-  params: {
-    topicId: string;
-    questionNumber: string;
-  };
-}
+// Use standard signature with explicit NextRequest type
+// Updated for Next.js 15 Promise params
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ topicId: string; questionNumber: string }> } // Type params as Promise
+): Promise<NextResponse<ApiResponseData | ErrorResponse>> {
 
-export async function GET(request: Request, context: RouteContext): Promise<NextResponse<ApiResponseData | ErrorResponse>> {
-  const { topicId, questionNumber } = context.params;
-  const topicIdNum = parseInt(topicId);
-  const currentQuestionNumber = parseInt(questionNumber);
-
-  const logPrefix = `[API /api/question/${topicId}/${questionNumber}]`;
-  console.log(`${logPrefix} Starting fetch...`);
-
-  if (isNaN(topicIdNum) || isNaN(currentQuestionNumber)) {
-    console.error(`${logPrefix} Invalid parameters: topicId or questionNumber is not a number.`);
-    return NextResponse.json({ error: 'Invalid topic ID or question number.' }, { status: 400 });
+  let resolvedParams: { topicId: string; questionNumber: string };
+  try {
+    // Await the params promise to resolve *before* the main try block
+    resolvedParams = await params;
+  } catch (paramError) {
+    console.error("[API /api/question/unknown/unknown] Error resolving route parameters:", paramError);
+    return NextResponse.json({ error: 'Failed to resolve route parameters.' }, { status: 500 });
   }
 
+  const { topicId, questionNumber } = resolvedParams;
+  const logPrefix = `[API /api/question/${topicId}/${questionNumber}]`; // Define logPrefix using resolved params
+
   try {
+    console.log(`${logPrefix} Starting fetch...`);
+
+    const topicIdNum = parseInt(topicId);
+    const currentQuestionNumber = parseInt(questionNumber);
+
+    if (isNaN(topicIdNum) || isNaN(currentQuestionNumber)) {
+      console.error(`${logPrefix} Invalid parameters: topicId or questionNumber is not a number.`);
+      return NextResponse.json({ error: 'Invalid topic ID or question number.' }, { status: 400 });
+    }
+
     // 1. Get topic information
     console.log(`${logPrefix} Fetching topic info...`);
     const { data: topicData, error: topicError } = await supabase

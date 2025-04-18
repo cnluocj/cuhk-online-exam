@@ -2,6 +2,7 @@
 
 import { useState, ChangeEvent, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function ImageTestPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -136,26 +137,42 @@ export default function ImageTestPage() {
              {/* Original Image Preview */}
              <div className="bg-white p-4 rounded-lg shadow-md">
                 <h3 className="text-lg font-semibold mb-2 text-center">Original</h3>
-                {originalImageUrl ? (
-                    <img src={originalImageUrl} alt="Original preview" className="max-w-full h-auto mx-auto rounded" />
-                ) : (
-                    <div className="text-center text-gray-500 py-10">Select an image to preview</div>
-                )}
+                <div className="relative w-full h-64 flex justify-center items-center">
+                  {originalImageUrl ? (
+                      <Image 
+                        src={originalImageUrl} 
+                        alt="Original preview" 
+                        fill
+                        style={{ objectFit: 'contain' }}
+                        className="rounded" 
+                      />
+                  ) : (
+                      <div className="text-center text-gray-500">Select an image to preview</div>
+                  )}
+                </div>
              </div>
 
              {/* Processed Image Result */}
              <div className="bg-white p-4 rounded-lg shadow-md">
                 <h3 className="text-lg font-semibold mb-2 text-center">Grayscale Result</h3>
-                {isLoading && (
-                     <div className="flex justify-center items-center py-10">
-                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-red-700"></div>
-                     </div>
-                )}
-                {!isLoading && processedImageUrl ? (
-                    <img src={processedImageUrl} alt="Grayscale result" className="max-w-full h-auto mx-auto rounded" />
-                ) : !isLoading && (
-                    <div className="text-center text-gray-500 py-10">Grayscale image will appear here</div>
-                )}
+                <div className="relative w-full h-64 flex justify-center items-center">
+                  {isLoading && (
+                       <div className="absolute inset-0 flex justify-center items-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-red-700"></div>
+                       </div>
+                  )}
+                  {!isLoading && processedImageUrl ? (
+                      <Image 
+                        src={processedImageUrl} 
+                        alt="Grayscale result" 
+                        fill
+                        style={{ objectFit: 'contain' }}
+                        className="rounded"
+                      />
+                  ) : !isLoading && (
+                      <div className="text-center text-gray-500">Grayscale image will appear here</div>
+                  )}
+                </div>
              </div>
           </div>
 
