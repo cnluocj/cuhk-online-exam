@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import MathJaxContent from '@/components/MathJaxContent';
 import { use } from 'react';
 
@@ -76,6 +77,14 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
   const [showAnswer, setShowAnswer] = useState(false);
   const [language, setLanguage] = useState<'English' | 'Chinese'>('English');
 
+  // State for OCR
+  const [ocrFile, setOcrFile] = useState<File | null>(null);
+  const [ocrImageUrl, setOcrImageUrl] = useState<string | null>(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  const [ocrResult, setOcrResult] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Fetch data from the API endpoint
   useEffect(() => {
     async function fetchDataFromApi() {
@@ -138,6 +147,16 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
     // Dependency array: only re-run when topicId or questionNumber changes
   }, [topicIdNum, currentQuestionNumber]);
 
+  // Clean up Object URL for OCR preview image
+  useEffect(() => {
+    const currentOcrImageUrl = ocrImageUrl;
+    return () => {
+      if (currentOcrImageUrl) {
+        URL.revokeObjectURL(currentOcrImageUrl);
+      }
+    };
+  }, [ocrImageUrl]);
+
   // Switch language (client-side toggle)
   const toggleLanguage = () => {
     setLanguage(prev => prev === 'English' ? 'Chinese' : 'English');
@@ -151,6 +170,12 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
   // Go to next question
   const goToNextQuestion = () => {
     if (currentQuestionNumber < totalQuestions) {
+      // Clear OCR state when navigating
+      setOcrFile(null);
+      setOcrImageUrl(null);
+      setOcrResult("");
+      setOcrError(null);
+      if (fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
       router.push(`/question-bank/${topicIdNum}/${currentQuestionNumber + 1}`);
     }
   };
@@ -158,7 +183,137 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
   // Go to previous question
   const goToPrevQuestion = () => {
     if (currentQuestionNumber > 1) {
+      // Clear OCR state when navigating
+      setOcrFile(null);
+      setOcrImageUrl(null);
+      setOcrResult("");
+      setOcrError(null);
+      if (fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
       router.push(`/question-bank/${topicIdNum}/${currentQuestionNumber - 1}`);
+    }
+  };
+
+  // Show or hide answer
+  const toggleShowAnswer = () => {
+    setShowAnswer(prev => !prev);
+    requestMathJaxReprocess(); 
+  };
+
+  // Handle OCR file selection
+  const handleOcrFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setOcrFile(file);
+      setOcrError(null);
+      setOcrResult(""); // Clear previous result
+      // Create a URL for the image preview
+      const newImageUrl = URL.createObjectURL(file);
+      setOcrImageUrl(newImageUrl);
+    } else {
+      setOcrFile(null);
+      setOcrImageUrl(null);
+    }
+  };
+
+  // Handle Run OCR button click
+  const handleRunOcr = async () => {
+    if (!ocrFile) {
+      setOcrError('Please select an image file first.');
+      return;
+    }
+
+    setOcrLoading(true);
+    setOcrError(null);
+    setOcrResult(""); // Clear previous results
+
+    // Prepare FormData for the backend proxy route
+    const formData = new FormData();
+    formData.append('image', ocrFile);
+    formData.append('user', 'cuhk-exam-user'); // Send user ID to backend
+
+    try {
+      // Call your Next.js backend route
+      console.log('[Page OCR] Calling backend route /api/ocr/run-dify');
+      const response = await fetch('/api/ocr/run-dify', {
+        method: 'POST',
+        body: formData, // Send FormData directly
+        // No Authorization or Content-Type headers needed here (fetch handles FormData)
+      });
+
+      console.log(`[Page OCR] Backend response status: ${response.status}`);
+
+      if (!response.ok || !response.body) {
+        let errorDetails = `Error: ${response.status}`;
+        try {
+          const errorJson = await response.json(); // Error from your backend route
+          errorDetails = `${errorDetails} - ${errorJson.error || errorJson.details || 'Unknown backend error'}`;
+        } catch { /* Ignore if error response is not JSON */ }
+        throw new Error(errorDetails);
+      }
+
+      // Process the stream proxied from the backend (same logic as before)
+      const streamReader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      while (true) {
+          const { value, done } = await streamReader.read();
+          if (done) {
+              console.log('[Page OCR] Stream finished.');
+              break;
+          }
+          
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop() || ''; 
+
+          for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                  try {
+                      const jsonData = JSON.parse(line.substring(6));
+                      let chunk = '';
+                      // Updated logic: Check for "text_chunk" event and extract from data.text
+                      if (jsonData.event === 'text_chunk' && jsonData.data?.text) {
+                         chunk = jsonData.data.text;
+                      } 
+                      // Add other checks here if Dify sends different event types for text
+                      
+                      if (chunk) {
+                        setOcrResult(prev => prev + chunk);
+                      }
+                  } catch (e) {
+                      console.warn('[Page OCR] Failed to parse SSE JSON:', line, e);
+                  }
+              }
+          }
+      }
+      // Append any remaining text in the buffer after the loop
+      if (buffer.startsWith('data: ')) { 
+          try {
+              const jsonData = JSON.parse(buffer.substring(6));
+              let chunk = ''; 
+              // Also update the check for the final buffer chunk
+              if (jsonData.event === 'text_chunk' && jsonData.data?.text) {
+                 chunk = jsonData.data.text;
+              }
+              if (chunk) setOcrResult(prev => prev + chunk);
+          } catch (e) {
+              console.warn('[Page OCR] Failed to parse final SSE JSON buffer:', buffer, e);
+          }
+      }
+
+      // === Trigger MathJax after stream ===
+      console.log('[Page OCR] Requesting MathJax reprocess after stream finished.');
+      requestMathJaxReprocess();
+      // =====================================
+
+    } catch (err) {
+      console.error('[Page OCR] Error running OCR via backend:', err);
+      setOcrError(err instanceof Error ? err.message : 'An unknown error occurred.');
+      setOcrResult(""); // Clear results on error
+    } finally {
+      setOcrLoading(false);
     }
   };
 
@@ -176,13 +331,6 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
       }
     }, 50); // Short delay to allow potential DOM updates
   }
-
-  // Show or hide answer
-  const toggleShowAnswer = () => {
-    setShowAnswer(prev => !prev); // Update state first
-    // Always request reprocessing after toggling answer visibility
-    requestMathJaxReprocess(); 
-  };
 
   // --- JSX Rendering --- 
   // (Header and Footer remain the same)
@@ -292,6 +440,81 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
                     {showAnswer ? 'No answer available' : 'Click "Show Answer" to view the solution'}
                   </div>
                 )}
+              </div>
+
+              {/* OCR Section */}
+              <div className="bg-white p-6 rounded-lg shadow-md mb-6 border-t-4 border-red-200">
+                <h2 className="text-xl font-semibold mb-4">Check Your Work (OCR)</h2>
+                <div className="mb-4">
+                  <label htmlFor="ocr-upload" className="block text-sm font-medium text-gray-700 mb-2">Upload an image of your answer:</label>
+                  <input 
+                    id="ocr-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleOcrFileChange}
+                    ref={fileInputRef}
+                    className="block w-full text-sm text-gray-500 
+                              file:mr-4 file:py-2 file:px-4
+                              file:rounded-full file:border-0
+                              file:text-sm file:font-semibold
+                              file:bg-red-50 file:text-red-700
+                              hover:file:bg-red-100"
+                  />
+                </div>
+                
+                <button
+                  onClick={handleRunOcr}
+                  disabled={!ocrFile || ocrLoading}
+                  className={`px-6 py-2 rounded-md text-white font-semibold 
+                              ${!ocrFile || ocrLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}
+                              transition-colors mb-4`}
+                >
+                  {ocrLoading ? 'Running OCR...' : 'Run OCR'}
+                </button>
+
+                {ocrError && (
+                  <p className="text-red-600 mb-4">OCR Error: {ocrError}</p>
+                )}
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Uploaded Image Preview */}
+                  <div className="bg-gray-50 p-4 rounded-lg shadow-inner">
+                    <h3 className="text-lg font-semibold mb-2 text-center">Your Upload</h3>
+                    <div className="relative w-full h-64 flex justify-center items-center"> 
+                      {ocrImageUrl ? (
+                          <Image 
+                            src={ocrImageUrl} 
+                            alt="Uploaded answer preview" 
+                            fill 
+                            style={{ objectFit: 'contain' }} 
+                            className="rounded" 
+                          />
+                      ) : (
+                          <div className="text-center text-gray-400 italic">No image selected</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* OCR Result */}
+                  <div className="bg-gray-50 p-4 rounded-lg shadow-inner">
+                    <h3 className="text-lg font-semibold mb-2 text-center">Recognized Text</h3>
+                    <div className="w-full h-64 overflow-y-auto border border-gray-300 rounded p-2 bg-white">
+                      {ocrLoading && !ocrResult && ( // Show spinner only if loading and no result yet
+                           <div className="flex justify-center items-center h-full">
+                              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-red-700"></div>
+                           </div>
+                      )}
+                      {!ocrLoading && !ocrResult && (
+                           <div className="flex justify-center items-center h-full text-gray-400 italic">
+                               OCR result will appear here...
+                           </div>
+                      )}
+                      {ocrResult && (
+                         <MathJaxContent content={ocrResult} id="ocr-result-content" key={ocrResult} />
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Navigation Buttons */}
