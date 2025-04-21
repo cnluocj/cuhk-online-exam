@@ -209,6 +209,9 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
       // Create a URL for the image preview
       const newImageUrl = URL.createObjectURL(file);
       setOcrImageUrl(newImageUrl);
+      // === Trigger reprocessing after setting preview ===
+      requestMathJaxReprocess();
+      // =============================================
     } else {
       setOcrFile(null);
       setOcrImageUrl(null);
@@ -225,6 +228,10 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
     setOcrLoading(true);
     setOcrError(null);
     setOcrResult(""); // Clear previous results
+    
+    // === Trigger reprocessing after initial state updates ===
+    requestMathJaxReprocess();
+    // ====================================================
 
     // Prepare FormData for the backend proxy route
     const formData = new FormData();
