@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useEffect, ChangeEvent, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import MathJaxContent from '@/components/MathJaxContent';
 import { use } from 'react';
 import supabase from '@/utils/supabase';
 
 // ByteMD imports
-import { Editor, EditorProps } from '@bytemd/react';
+import { Editor } from '@bytemd/react';
 import gfm from '@bytemd/plugin-gfm';
 import math from '@bytemd/plugin-math';
 import 'bytemd/dist/index.css'; // Base ByteMD styles
@@ -93,8 +92,7 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
   const [editorKeyCounter, setEditorKeyCounter] = useState<number>(0); // State for forcing editor remount
   const [isProcessingOcr, setIsProcessingOcr] = useState<boolean>(false); // 添加处理OCR状态
   
-  // Ref to store cursor position and insertion information
-  const editorRef = useRef<any>(null);
+  // Ref to store pending OCR insertion information
   const pendingOcrRef = useRef<{
     file: File | null;
     imageUrl: string;
@@ -105,22 +103,30 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
     insertionPoint: null
   });
 
-  // State to track image uploads and their positions in the content
-  const [imagePositionMap, setImagePositionMap] = useState<Map<string, number>>(new Map());
-
-  // 使用ref来跟踪最近插入的图片
-  const lastInsertedImageRef = useRef<{
-    url: string;
-    alt: string;
-    position: string;
-  } | null>(null);
-
   // Configure ByteMD plugins
   const plugins = [
     gfm(),
     math({ katexOptions: { output: 'html' } }) // Enable math plugin with KaTeX
     // Add other plugins if needed
   ];
+
+  // --- Helper Functions --- 
+
+  // Helper function to request MathJax reprocessing (useCallback to stabilize reference)
+  // Define this *before* useEffect which depends on it
+  const requestMathJaxReprocess = useCallback(() => {
+    setTimeout(() => {
+      const MathJax = (window as WindowWithMathJax).MathJax;
+      if (MathJax && typeof MathJax.typeset === 'function') {
+        try {
+          console.log('[Page] Requesting MathJax typeset...');
+          MathJax.typeset();
+        } catch (error) {
+          console.error('[Page] Error reprocessing MathJax:', error);
+        }
+      }
+    }, 50); // Short delay to allow potential DOM updates
+  }, []); // Empty dependency array, function doesn't depend on state/props
 
   // Fetch data from the API endpoint
   useEffect(() => {
@@ -182,25 +188,8 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
         fetchDataFromApi();
     }
     // Dependency array: only re-run when topicId or questionNumber changes
-  }, [topicIdNum, currentQuestionNumber]);
-
-  // --- Helper Functions --- 
-
-  // Helper function to request MathJax reprocessing (useCallback to stabilize reference)
-  // Define this *before* functions that depend on it
-  const requestMathJaxReprocess = useCallback(() => {
-    setTimeout(() => {
-      const MathJax = (window as WindowWithMathJax).MathJax;
-      if (MathJax && typeof MathJax.typeset === 'function') {
-        try {
-          console.log('[Page] Requesting MathJax typeset...');
-          MathJax.typeset();
-        } catch (error) {
-          console.error('[Page] Error reprocessing MathJax:', error);
-        }
-      }
-    }, 50); // Short delay to allow potential DOM updates
-  }, []); // Empty dependency array, function doesn't depend on state/props
+    // Added requestMathJaxReprocess to satisfy exhaustive-deps
+  }, [topicIdNum, currentQuestionNumber, requestMathJaxReprocess]);
 
   // --- Event Handlers --- 
 
@@ -354,7 +343,7 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
       }
       
       // Look for the end of the line or a newline character after the image
-      let lineEndIndex = value.indexOf('\n', insertionPoint);
+      const lineEndIndex = value.indexOf('\n', insertionPoint);
       if (lineEndIndex !== -1) {
         insertionPoint = lineEndIndex; // Insert at the end of the line
       }
@@ -452,7 +441,7 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
 
       try {
         console.log(`[Editor Upload] Uploading ${file.name} to Supabase bucket '${bucketName}' as ${filePath}...`);
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from(bucketName)
           .upload(filePath, file, { 
              cacheControl: '3600', 
@@ -517,11 +506,6 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
     opacity: 0.85,
     userSelect: 'none' as const
   } : {};
-
-  // 自定义样式，增加编辑器高度
-  const editorWrapperStyles = {
-    // 编辑器样式
-  };
 
   // --- Memoized UI Sections --- 
 
