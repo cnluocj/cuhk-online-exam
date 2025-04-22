@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, ChangeEvent, useRef, useCallback } from 'react';
+import { useState, useEffect, ChangeEvent, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -91,6 +91,7 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
   // State for Markdown Editor
   const [editorContent, setEditorContent] = useState<string>("");
   const [editorKeyCounter, setEditorKeyCounter] = useState<number>(0); // State for forcing editor remount
+  const [isProcessingOcr, setIsProcessingOcr] = useState<boolean>(false); // 添加处理OCR状态
   
   // Ref to store cursor position and insertion information
   const editorRef = useRef<any>(null);
@@ -226,11 +227,11 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
     }
   };
 
-  // Show or hide answer
-  const toggleShowAnswer = () => {
+  // Show or hide answer (wrapped in useCallback)
+  const toggleShowAnswer = useCallback(() => {
     setShowAnswer(prev => !prev);
     requestMathJaxReprocess(); 
-  };
+  }, [requestMathJaxReprocess]); // Dependency added
 
   // --- OCR & Editor Handlers --- 
 
@@ -335,8 +336,11 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
     // Check if there is a pending OCR and if image URL appears in the new content
     const { file, imageUrl } = pendingOcrRef.current;
     
-    if (file && imageUrl && value.includes(imageUrl)) {
+    if (file && imageUrl && value.includes(imageUrl) && !isProcessingOcr) {
       console.log(`[ByteMD] Detected inserted image URL in editor content: ${imageUrl}`);
+      
+      // 设置OCR处理状态为true
+      setIsProcessingOcr(true);
       
       // Find the position where the image URL appears
       const imageUrlIndex = value.indexOf(imageUrl);
@@ -384,6 +388,9 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
             setEditorContent(value + `\n\n**OCR Error:** ${errorMessage}\n\n`);
             requestMathJaxReprocess();
           }
+          
+          // 设置OCR处理状态为false
+          setIsProcessingOcr(false);
         },
         onFinish: (fullText: string) => {
           console.log(`[Editor OCR] OCR completed with ${fullText.length} characters`);
@@ -418,10 +425,13 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
             setEditorContent(value + `\n\n${fullText}\n\n`);
             setEditorKeyCounter(prev => prev + 1);
           }
+          
+          // 设置OCR处理状态为false
+          setIsProcessingOcr(false);
         }
       });
     }
-  }, [triggerOcrProcess, requestMathJaxReprocess]);
+  }, [triggerOcrProcess, requestMathJaxReprocess, isProcessingOcr]);
 
   // Handle image uploads from the ByteMD editor (Completely revised approach)
   const handleEditorImageUpload = useCallback(async (files: File[]) => {
@@ -501,6 +511,67 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
     return results; // Return URLs for ByteMD to insert into the editor
   }, []);
 
+  // 在编辑器容器上使用指针事件来阻止用户交互
+  const editorContainerStyles = isProcessingOcr ? {
+    pointerEvents: 'none' as const,
+    opacity: 0.85,
+    userSelect: 'none' as const
+  } : {};
+
+  // 自定义样式，增加编辑器高度
+  const editorWrapperStyles = {
+    // 编辑器样式
+  };
+
+  // --- Memoized UI Sections --- 
+
+  const MemoizedQuestionContent = useMemo(() => {
+    if (!currentQuestion) return null;
+    return (
+      <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+        <h2 className="text-xl font-semibold mb-4">Question {currentQuestionNumber}</h2>
+        <div className="py-2 text-lg">
+          <MathJaxContent 
+            content={currentQuestion.latex_content} 
+            id={`question-${currentQuestion.id}`}
+            key={`question-${currentQuestion.id}-${language}`} // Key changes on language swap
+          />
+        </div>
+      </div>
+    );
+  }, [currentQuestion, currentQuestionNumber, language]); // Dependencies
+
+  const MemoizedAnswerArea = useMemo(() => {
+    return (
+      <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Answer</h2>
+          <button
+            onClick={toggleShowAnswer}
+            className="text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-md"
+            disabled={!answer} // Disable if no answer exists
+          >
+            {showAnswer ? 'Hide Answer' : 'Show Answer'}
+          </button>
+        </div>
+        
+        {showAnswer && answer ? (
+          <div className="py-2">
+            <MathJaxContent 
+              content={answer.latex_content} 
+              id={`answer-${answer.id}`}
+              key={`answer-${answer.id}`} // Key ensures re-render if needed
+            />
+          </div>
+        ) : (
+          <div className="py-8 text-center text-gray-500">
+            {showAnswer ? 'No answer available' : 'Click "Show Answer" to view the solution'}
+          </div>
+        )}
+      </div>
+    );
+  }, [answer, showAnswer, toggleShowAnswer]); // toggleShowAnswer is now stable
+
   // --- JSX Rendering --- 
   return (
     <div className="flex min-h-screen flex-col">
@@ -521,7 +592,7 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
 
       {/* Main Content */}
       <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="mx-auto">
           {loading ? (
             <div className="flex justify-center items-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-700"></div>
@@ -567,62 +638,49 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
                 </div>
               </div>
 
-              {/* Question Content */}
-              <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-                <h2 className="text-xl font-semibold mb-4">Question {currentQuestionNumber}</h2>
-                 {/* Use currentQuestion which is derived from language state */}
-                <div className="py-2 text-lg">
-                  <MathJaxContent 
-                    content={currentQuestion.latex_content} 
-                    id={`question-${currentQuestion.id}`}
-                    key={`question-${currentQuestion.id}-${language}`} // Key changes on language swap to force re-render
-                  />
-                </div>
-              </div>
+              {/* Question Content - Using Memoized Component */}
+              {MemoizedQuestionContent}
 
-              {/* Answer Area */}
-              <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold">Answer</h2>
-                  <button
-                    onClick={toggleShowAnswer}
-                    className="text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-md"
-                    disabled={!answer} // Disable if no answer exists
-                  >
-                    {showAnswer ? 'Hide Answer' : 'Show Answer'}
-                  </button>
-                </div>
-                
-                {showAnswer && answer ? (
-                  <div className="py-2">
-                    <MathJaxContent 
-                      content={answer.latex_content} 
-                      id={`answer-${answer.id}`}
-                      key={`answer-${answer.id}`} // Key ensures re-render if needed
-                    />
-                  </div>
-                ) : (
-                  <div className="py-8 text-center text-gray-500">
-                    {showAnswer ? 'No answer available' : 'Click "Show Answer" to view the solution'}
-                  </div>
-                )}
-              </div>
+              {/* Answer Area - Using Memoized Component */}
+              {MemoizedAnswerArea}
 
               {/* OCR Section */}
               <div className="bg-white p-6 rounded-lg shadow-md mb-6 border-t-4 border-red-200">
                 <h2 className="text-xl font-semibold mb-4">Your Workspace / Answer</h2>
 
-                {/* ByteMD Editor */} 
-                <div className="mb-6 bytemd-container"> 
-                  <Editor
-                    value={editorContent}
-                    plugins={plugins}
-                    onChange={handleEditorChange}
-                    uploadImages={handleEditorImageUpload} 
-                    // Update key to include the counter
-                    key={`editor-${topicIdNum}-${currentQuestionNumber}-${editorKeyCounter}`} 
-                    // ByteMD's Editor doesn't have an editorRef prop, so we'll use a ref callback approach instead
-                  />
+                {/* ByteMD Editor with OCR processing indicator */} 
+                <div className="mb-6 bytemd-container relative"> 
+                    {/* 添加自定义样式以增加编辑器高度 */}
+                    <style jsx global>{`
+                      /* 增加 ByteMD 编辑器高度 */
+                      .bytemd {
+                        height: calc(100vh - 400px) !important; /* 动态适应屏幕高度，减去头部、问题、答案等区域的高度 */
+                        min-height: 500px !important; /* 设置最小高度，确保在小屏幕上也有足够空间 */
+                      }
+                      /* 优化编辑和预览区域的滚动条 */
+                      .bytemd-editor, .bytemd-preview {
+                        height: 100% !important;
+                      }
+                    `}</style>
+
+                    {isProcessingOcr && (
+                      <div className="absolute top-2 right-2 z-10 bg-white shadow-md rounded-md px-3 py-2 flex items-center space-x-2 border border-red-200">
+                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-red-700"></div>
+                        <span className="text-sm font-medium text-red-700">Processing OCR...</span>
+                      </div>
+                    )}
+                    <div style={editorContainerStyles}>
+                        <Editor
+                            value={editorContent}
+                            plugins={plugins}
+                            onChange={handleEditorChange}
+                            uploadImages={handleEditorImageUpload} 
+                            // Update key to include the counter
+                            key={`editor-${topicIdNum}-${currentQuestionNumber}-${editorKeyCounter}`} 
+                            // 使用默认的编辑器模式
+                            mode="split"
+                        />
+                    </div>
                 </div>
 
               </div>
