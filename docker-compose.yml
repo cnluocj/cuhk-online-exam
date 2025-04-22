@@ -1,0 +1,40 @@
+version: '3.9'
+
+services:
+  app:
+    # Build the image using the Dockerfile in the current directory (.)
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Pass build-time arguments from .env file
+      # Required for NEXT_PUBLIC_* variables used during 'npm run build'
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    
+    # Service name within the Docker network (optional)
+    container_name: cuhk_exam_app
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Load environment variables from .env file for runtime
+    env_file:
+      - .env
+      
+    # Map the host port (defined in .env as APP_PORT) to the container port (3000)
+    ports:
+      - "${APP_PORT:-3000}:3000"
+      
+    # Add healthcheck (optional but recommended)
+    # healthcheck:
+    #   test: ["CMD", "curl", "--fail", "http://localhost:3000"] # Adjust path if needed
+    #   interval: 1m30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 30s
+
+# Define networks (optional, useful if adding more services like db, proxy)
+# networks:
+#   default:
+#     driver: bridge 
