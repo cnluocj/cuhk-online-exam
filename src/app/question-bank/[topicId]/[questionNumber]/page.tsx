@@ -224,9 +224,9 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
 
   // --- OCR & Editor Handlers --- 
 
-  // Refactored Trigger OCR process: Takes callbacks, accumulates text
+  // Refactored Trigger OCR process: Includes pre-compression step
   const triggerOcrProcess = useCallback(async (
-      fileToProcess: File,
+      originalFile: File,
       options: { 
           onError: (errorMessage: string) => void,
           onStart?: () => void,
@@ -236,21 +236,60 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
     options.onStart?.();
     requestMathJaxReprocess(); 
 
-    const formData = new FormData();
-    formData.append('image', fileToProcess); 
-    formData.append('user', 'cuhk-exam-user-editor'); 
+    let processedFile: File | Blob = originalFile;
+    let contentType = originalFile.type;
+    const logPrefix = '[Page OCR Trigger]';
+
+    // --- Step 1: Pre-compress/grayscale the image using our API --- 
+    try {
+      console.log(`${logPrefix} Sending image to grayscale/compression API...`);
+      const compressionFormData = new FormData();
+      compressionFormData.append('image', originalFile);
+      
+      const compressionResponse = await fetch('/api/image/grayscale', {
+        method: 'POST',
+        body: compressionFormData,
+      });
+
+      if (!compressionResponse.ok) {
+        let errorDetails = `Grayscale API Error: ${compressionResponse.status}`;
+        try {
+            const errorJson = await compressionResponse.json();
+            errorDetails = `${errorDetails} - ${errorJson.error || errorJson.details || 'Unknown grayscale error'}`;
+        } catch { /* Ignore JSON parsing error */ }
+        throw new Error(errorDetails);
+      }
+      
+      // Get the compressed image blob and its content type
+      const compressedBlob = await compressionResponse.blob();
+      contentType = compressionResponse.headers.get('Content-Type') || 'image/jpeg'; // Default to jpeg if header missing
+      processedFile = new File([compressedBlob], `processed_${originalFile.name}`, { type: contentType });
+      console.log(`${logPrefix} Image processed by grayscale/compression API. New size: ${Math.round(processedFile.size / 1024)} KB, Type: ${contentType}`);
+
+    } catch (compressionError) {
+      console.error(`${logPrefix} Error during image pre-processing:`, compressionError);
+      const errorMessage = compressionError instanceof Error ? compressionError.message : 'Failed during image pre-processing.';
+      options.onError(`Pre-processing Error: ${errorMessage}`);
+      requestMathJaxReprocess(); // Ensure MathJax runs even on pre-processing error
+      return; // Stop the process if compression fails
+    }
+    
+    // --- Step 2: Send the processed image to Dify OCR API --- 
+    const ocrFormData = new FormData();
+    ocrFormData.append('image', processedFile); // Use the processed file/blob
+    ocrFormData.append('user', 'cuhk-exam-user-editor'); 
     
     let accumulatedText = ""; // Accumulate text here
 
     try {
-      console.log('[Page OCR Trigger] Calling backend route /api/ocr/run-dify');
+      console.log(`${logPrefix} Calling Dify OCR backend route /api/ocr/run-dify with processed image...`);
       const response = await fetch('/api/ocr/run-dify', {
         method: 'POST',
-        body: formData,
+        body: ocrFormData,
       });
 
       if (!response.ok || !response.body) {
-        let errorDetails = `Error: ${response.status}`;
+        let errorDetails = `Dify API Error: ${response.status}`;
         try {
           const errorJson = await response.json();
           errorDetails = `${errorDetails} - ${errorJson.error || errorJson.details || 'Unknown backend error'}`;
@@ -264,7 +303,7 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
       while (true) {
         const { value, done } = await streamReader.read();
         if (done) {
-          console.log('[Page OCR Trigger] Stream finished.');
+          console.log(`${logPrefix} Dify stream finished.`);
           break;
         }
         
@@ -283,7 +322,7 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
                 accumulatedText += chunk; // Accumulate internally
               }
             } catch (e) {
-              console.warn('[Page OCR Trigger] Failed to parse SSE JSON:', line, e);
+              console.warn(`${logPrefix} Failed to parse Dify SSE JSON:`, line, e);
             }
           }
         }
@@ -298,20 +337,20 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
           }
           if (chunk) accumulatedText += chunk; // Accumulate final chunk
         } catch (e) {
-          console.warn('[Page OCR Trigger] Failed to parse final SSE JSON buffer:', buffer, e);
+          console.warn(`${logPrefix} Failed to parse final Dify SSE JSON buffer:`, buffer, e);
         }
       }
       
       // Call onFinish with the complete text *before* final MathJax
       options.onFinish(accumulatedText);
-      console.log('[Page OCR Trigger] Requesting MathJax reprocess after stream finished.');
+      console.log(`${logPrefix} Requesting MathJax reprocess after Dify stream finished.`);
       requestMathJaxReprocess();
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
-      console.error('[Page OCR Trigger] Error running OCR:', err);
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred running Dify OCR.';
+      console.error(`${logPrefix} Error running Dify OCR:`, err);
       // Call the onError callback
-      options.onError(errorMessage);
+      options.onError(`OCR Error: ${errorMessage}`);
     } finally {
        requestMathJaxReprocess(); // Keep final reprocess just in case
     }
