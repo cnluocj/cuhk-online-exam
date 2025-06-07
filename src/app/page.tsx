@@ -12,6 +12,7 @@ export default function Home() {
           <nav>
             <ul className="flex space-x-6">
               <li><Link href="/question-bank" className="hover:underline">Question Bank</Link></li>
+              <li><Link href="/admin" className="hover:underline">Admin</Link></li>
               <li><Link href="/login" className="hover:underline">Login</Link></li>
             </ul>
           </nav>

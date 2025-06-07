@@ -9,6 +9,7 @@ interface Question {
   latex_content: string;
   language: string;
   topic_id: number;
+  scoring_criteria?: string | null;
 }
 
 interface Answer {

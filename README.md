@@ -98,14 +98,27 @@ OCR_API_KEY=<你的_DIFY_API_密钥>
 
 #### 3.2 初始化数据库表结构
 
-在 Supabase SQL 编辑器中运行：
+**新环境（推荐）**：
+在 Supabase SQL 编辑器中运行完整的初始化脚本：
+```sql
+-- 运行 scripts/init-new-environment.sql 中的内容
+-- 这个脚本包含所有表结构、迁移系统和评分标准功能
+```
 
+**或者分步执行**：
+
+1. 基础表结构：
 ```sql
 -- 运行 scripts/setup-database.sql 中的内容
 ```
 
-或者使用 Node.js 脚本：
+2. 添加评分标准功能：
+```sql
+-- 运行 scripts/init-migrations-table.sql 创建迁移表
+-- 然后执行: ALTER TABLE questions ADD COLUMN scoring_criteria TEXT;
+```
 
+**使用 Node.js 脚本**：
 ```bash
 cd scripts
 npm install
@@ -176,6 +189,7 @@ docker run -p 3000:3000 --env-file .env cuhk-online-exam
 - `content`: 题目内容
 - `latex_content`: LaTeX 原始内容
 - `difficulty`: 难度等级 (可选)
+- `scoring_criteria`: 评分标准 (可选)
 - `created_at`: 创建时间
 
 ### Answers (答案表)
@@ -199,7 +213,27 @@ GET /api/topics
 ```
 GET /api/question/[topicId]/[questionNumber]
 ```
-获取指定主题和题号的题目，包括中英文版本和答案。
+获取指定主题和题号的题目，包括中英文版本、答案和评分标准。
+
+#### 管理后台相关 API
+
+#### 获取所有题目（管理后台）
+```
+GET /api/admin/questions?language=English&page=1&limit=20
+```
+获取题目列表，用于管理后台显示。
+
+#### 生成评分标准
+```
+POST /api/scoring-criteria/generate
+```
+调用 Dify API 生成题目的评分标准。
+
+#### 保存评分标准
+```
+POST /api/scoring-criteria/save
+```
+保存生成的评分标准到数据库。
 
 ### OCR 相关 API
 
