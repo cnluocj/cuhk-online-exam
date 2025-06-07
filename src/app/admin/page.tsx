@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface Question {
   id: number;
@@ -40,11 +40,7 @@ export default function AdminPage() {
   const [generatingCriteria, setGeneratingCriteria] = useState<number | null>(null);
   const [language, setLanguage] = useState<'English' | 'Chinese'>('English');
 
-  useEffect(() => {
-    fetchQuestions();
-  }, [language]);
-
-  const fetchQuestions = async () => {
+  const fetchQuestions = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/admin/questions?language=${language}&limit=50`);
@@ -61,7 +57,11 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [language]);
+
+  useEffect(() => {
+    fetchQuestions();
+  }, [fetchQuestions]);
 
   const generateScoringCriteria = async (question: QuestionWithDetails) => {
     if (!question.answer) {
