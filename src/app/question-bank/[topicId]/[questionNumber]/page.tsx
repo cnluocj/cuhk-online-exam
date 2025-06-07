@@ -91,6 +91,10 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
   const [editorContent, setEditorContent] = useState<string>("");
   const [editorKeyCounter, setEditorKeyCounter] = useState<number>(0); // State for forcing editor remount
   const [isProcessingOcr, setIsProcessingOcr] = useState<boolean>(false); // 添加处理OCR状态
+
+  // State for Auto Scoring
+  const [isScoring, setIsScoring] = useState<boolean>(false);
+  const [scoreResult, setScoreResult] = useState<{score: string; feedback: string} | null>(null);
   
   // Ref to store pending OCR insertion information
   const pendingOcrRef = useRef<{
@@ -219,10 +223,65 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
   // Show or hide answer (wrapped in useCallback)
   const toggleShowAnswer = useCallback(() => {
     setShowAnswer(prev => !prev);
-    requestMathJaxReprocess(); 
+    requestMathJaxReprocess();
   }, [requestMathJaxReprocess]); // Dependency added
 
-  // --- OCR & Editor Handlers --- 
+  // Auto scoring function
+  const handleAutoScore = useCallback(async () => {
+    if (!questionEnglish || !answer || !editorContent.trim()) {
+      alert('请确保题目、标准答案和学生答案都已加载');
+      return;
+    }
+
+    // 检查是否有评分标准
+    if (!questionEnglish.scoring_criteria) {
+      alert('该题目暂无评分标准，无法进行自动打分');
+      return;
+    }
+
+    setIsScoring(true);
+    setScoreResult(null);
+
+    try {
+      const response = await fetch('/api/scoring/auto-score', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          question: questionEnglish.content,
+          standardAnswer: answer.content,
+          studentAnswer: editorContent,
+          scoringCriteria: questionEnglish.scoring_criteria
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setScoreResult({
+          score: result.score,
+          feedback: result.feedback
+        });
+      } else {
+        alert('自动打分失败：' + result.error);
+      }
+    } catch (error) {
+      console.error('Auto scoring error:', error);
+      alert('自动打分时发生错误');
+    } finally {
+      setIsScoring(false);
+    }
+  }, [questionEnglish, answer, editorContent]);
+
+  // Trigger MathJax reprocessing when score result changes
+  useEffect(() => {
+    if (scoreResult) {
+      requestMathJaxReprocess();
+    }
+  }, [scoreResult, requestMathJaxReprocess]);
+
+  // --- OCR & Editor Handlers ---
 
   // Refactored Trigger OCR process: Includes pre-compression step
   const triggerOcrProcess = useCallback(async (
@@ -704,6 +763,63 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
                             mode="split"
                         />
                     </div>
+                </div>
+
+                {/* Auto Scoring Section */}
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-medium text-gray-900">自动打分</h3>
+                    <button
+                      onClick={handleAutoScore}
+                      disabled={isScoring || !editorContent.trim() || !questionEnglish?.scoring_criteria}
+                      className={`px-4 py-2 rounded-md text-sm font-medium ${
+                        isScoring || !editorContent.trim() || !questionEnglish?.scoring_criteria
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {isScoring ? '打分中...' : '开始打分'}
+                    </button>
+                  </div>
+
+                  {!questionEnglish?.scoring_criteria && (
+                    <p className="text-sm text-gray-500 mb-3">
+                      该题目暂无评分标准，无法进行自动打分
+                    </p>
+                  )}
+
+                  {!editorContent.trim() && questionEnglish?.scoring_criteria && (
+                    <p className="text-sm text-gray-500 mb-3">
+                      请先在上方编辑器中输入您的答案
+                    </p>
+                  )}
+
+                  {/* Scoring Result */}
+                  {scoreResult && (
+                    <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200">
+                      <div className="flex items-center mb-2">
+                        <span className="text-lg font-semibold text-blue-600">得分：{scoreResult.score}</span>
+                      </div>
+                      {scoreResult.feedback && (
+                        <div className="mt-3">
+                          <h4 className="text-sm font-medium text-gray-700 mb-2">详细反馈：</h4>
+                          <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
+                            <div
+                              className="markdown-content"
+                              dangerouslySetInnerHTML={{
+                                __html: scoreResult.feedback
+                                  .replace(/\$\$([^$]+)\$\$/g, '<span class="math-display">\\[$1\\]</span>')
+                                  .replace(/\$([^$]+)\$/g, '<span class="math-inline">\\($1\\)</span>')
+                                  .replace(/\n/g, '<br/>')
+                                  .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                                  .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
               </div>
