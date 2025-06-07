@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS questions (
   content TEXT NOT NULL,
   difficulty INTEGER,
   latex_content TEXT NOT NULL,
+  scoring_criteria TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(topic_id, question_number, language)
 );
