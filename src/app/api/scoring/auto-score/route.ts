@@ -28,7 +28,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<AutoScore
       }, { status: 400 });
     }
 
-    // 清理学生答案：移除图片链接，只保留文字内容
+    // Clean student answer: remove image links, keep only text content
     const cleanedStudentAnswer = cleanStudentAnswer(studentAnswer);
 
     console.log('[Auto Score API] Processing scoring request:', {
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<AutoScore
       scoringCriteria: scoringCriteria.substring(0, 100) + '...'
     });
 
-    // Dify API 配置 - 自动打分工作流
+    // Dify API configuration - Auto scoring workflow
     const difyApiKey = process.env.SCORING_AUTO_API_KEY || 'app-ISbGMnSzONo6ow83Ph4z7CM7';
     const difyEndpoint = process.env.SCORING_AUTO_API_ENDPOINT || 'http://43.134.17.26:8080/v1/workflows/run';
 
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<AutoScore
     const difyResponse = await response.json();
     console.log('[Auto Score API] Dify API response received:', JSON.stringify(difyResponse, null, 2));
 
-    // 解析 Dify workflow 响应
+    // Parse Dify workflow response
     let scoreResult = '';
     let feedbackResult = '';
     
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<AutoScore
       scoreResult = outputs.score || outputs.result || outputs.text || '';
       feedbackResult = outputs.feedback || outputs.comment || outputs.explanation || '';
       
-      // 如果只有一个输出字段，尝试解析它
+      // If there's only one output field, try to parse it
       if (!feedbackResult && scoreResult) {
         const parsed = parseScoreAndFeedback(scoreResult);
         scoreResult = parsed.score;
@@ -132,27 +132,27 @@ export async function POST(request: NextRequest): Promise<NextResponse<AutoScore
   }
 }
 
-// 清理学生答案：移除图片链接，只保留文字内容
+// Clean student answer: remove image links, keep only text content
 function cleanStudentAnswer(answer: string): string {
   console.log('[Clean Answer] Original answer:', answer);
 
-  // 移除 Markdown 图片语法 ![alt](url "title") 或 ![alt](url)
-  // 这个正则表达式匹配: ![任意文字](任意URL "任意标题")
+  // Remove Markdown image syntax ![alt](url "title") or ![alt](url)
+  // This regex matches: ![any text](any URL "any title")
   let cleaned = answer.replace(/!\[.*?\]\([^)]*?"[^"]*"\)/g, '');
 
-  // 移除没有标题的图片语法 ![alt](url)
+  // Remove image syntax without title ![alt](url)
   cleaned = cleaned.replace(/!\[.*?\]\([^)]*\)/g, '');
 
-  // 移除 HTML img 标签
+  // Remove HTML img tags
   cleaned = cleaned.replace(/<img[^>]*>/gi, '');
 
-  // 移除直接的图片链接（http/https开头的图片URL）
+  // Remove direct image links (http/https image URLs)
   cleaned = cleaned.replace(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|bmp|webp)/gi, '');
 
-  // 清理多余的空行（连续的换行符）
+  // Clean up excessive blank lines (consecutive newlines)
   cleaned = cleaned.replace(/\n\s*\n\s*\n/g, '\n\n');
 
-  // 清理开头和结尾的空白
+  // Clean up leading and trailing whitespace
   cleaned = cleaned.trim();
 
   console.log('[Clean Answer] Cleaned answer:', cleaned);
@@ -160,20 +160,27 @@ function cleanStudentAnswer(answer: string): string {
   return cleaned;
 }
 
-// 解析包含分数和反馈的文本
+// Parse text containing score and feedback (supports both English and Chinese)
 function parseScoreAndFeedback(text: string): { score: string; feedback: string } {
-  // 优先寻找总分相关的模式
-  const totalScorePatterns = [
+  // Priority patterns for total score (English)
+  const englishTotalScorePatterns = [
+    /(?:Total|Total Score|Final Score)[:：]?\s*(\d+(?:\.\d+)?)\s*(?:pts?|points?)\s*(?:\(out of\s*(\d+(?:\.\d+)?)\s*(?:pts?|points?)\))?/i,
+    /(?:Total|Total Score|Final Score)[:：]?\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*(?:pts?|points?)?/i,
+    /(?:Total|Total Score|Final Score)[:：]?\s*(\d+(?:\.\d+)?)\s*(?:pts?|points?)?/i,
+  ];
+
+  // Priority patterns for total score (Chinese - for backward compatibility)
+  const chineseTotalScorePatterns = [
     /(?:总分|共计|总计|最终得分)[:：]?\s*(\d+(?:\.\d+)?)\s*分/i,
     /(?:总分|共计|总计|最终得分)[:：]?\s*(\d+(?:\.\d+)?)\s*(?:\/|\(满分)\s*(\d+(?:\.\d+)?)\s*分/i,
     /(\d+(?:\.\d+)?)\s*分\s*(?:\(满分\s*(\d+(?:\.\d+)?)\s*分\))/i,
   ];
 
-  // 先尝试找总分
-  for (const pattern of totalScorePatterns) {
+  // Try English total score patterns first
+  for (const pattern of englishTotalScorePatterns) {
     const match = text.match(pattern);
     if (match) {
-      // 如果有满分信息，格式化为 "得分/满分"
+      // If there's max score info, format as "score/max"
       if (match[2]) {
         return {
           score: `${match[1]}/${match[2]}`,
@@ -188,8 +195,31 @@ function parseScoreAndFeedback(text: string): { score: string; feedback: string 
     }
   }
 
-  // 如果没找到总分，尝试其他分数模式
+  // Try Chinese total score patterns for backward compatibility
+  for (const pattern of chineseTotalScorePatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      // If there's max score info, format as "score/max"
+      if (match[2]) {
+        return {
+          score: `${match[1]}/${match[2]}`,
+          feedback: text
+        };
+      } else {
+        return {
+          score: match[1],
+          feedback: text
+        };
+      }
+    }
+  }
+
+  // If no total score found, try other score patterns (English and Chinese)
   const scorePatterns = [
+    // English patterns
+    /(?:Score|Points?)[:：]\s*(\d+(?:\.\d+)?(?:\/\d+)?(?:%)?)/i,
+    /(\d+(?:\.\d+)?(?:\/\d+)?(?:%)?)(?:\s*pts?|\s*points?)/i,
+    // Chinese patterns
     /(?:分数|得分|score)[:：]\s*(\d+(?:\.\d+)?(?:\/\d+)?(?:%)?)/i,
     /(\d+(?:\.\d+)?(?:\/\d+)?(?:%)?)(?:\s*分|\s*points?)/i,
   ];
@@ -204,8 +234,8 @@ function parseScoreAndFeedback(text: string): { score: string; feedback: string 
     }
   }
 
-  // 最后尝试提取第一个数字（但要避免步骤编号）
-  const numberMatch = text.match(/(?:得|获得|总共|共)\s*(\d+(?:\.\d+)?)/i);
+  // Last resort: extract first number (but avoid step numbers)
+  const numberMatch = text.match(/(?:得|获得|总共|共|scored|earned|received)\s*(\d+(?:\.\d+)?)/i);
   if (numberMatch) {
     return {
       score: numberMatch[1],
@@ -214,7 +244,7 @@ function parseScoreAndFeedback(text: string): { score: string; feedback: string 
   }
 
   return {
-    score: '未能解析分数',
+    score: 'Unable to parse score',
     feedback: text
   };
 }

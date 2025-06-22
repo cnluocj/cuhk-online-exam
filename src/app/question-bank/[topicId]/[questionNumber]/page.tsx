@@ -230,13 +230,13 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
   // Auto scoring function
   const handleAutoScore = useCallback(async () => {
     if (!questionEnglish || !answer || !editorContent.trim()) {
-      alert('请确保题目、标准答案和学生答案都已加载');
+      alert('Please ensure that the question, standard answer, and student answer are all loaded');
       return;
     }
 
-    // 检查是否有评分标准
+    // Check if scoring criteria exists
     if (!questionEnglish.scoring_criteria) {
-      alert('该题目暂无评分标准，无法进行自动打分');
+      alert('This question has no scoring criteria and cannot be automatically graded');
       return;
     }
 
@@ -265,11 +265,11 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
           feedback: result.feedback
         });
       } else {
-        alert('自动打分失败：' + result.error);
+        alert('Auto scoring failed: ' + result.error);
       }
     } catch (error) {
       console.error('Auto scoring error:', error);
-      alert('自动打分时发生错误');
+      alert('An error occurred during auto scoring');
     } finally {
       setIsScoring(false);
     }
@@ -769,7 +769,7 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
                 {/* Auto Scoring Section */}
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-medium text-gray-900">自动打分</h3>
+                    <h3 className="text-lg font-medium text-gray-900">Auto Scoring</h3>
                     <button
                       onClick={handleAutoScore}
                       disabled={isScoring || !editorContent.trim() || !questionEnglish?.scoring_criteria}
@@ -779,19 +779,19 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
                           : 'bg-blue-600 text-white hover:bg-blue-700'
                       }`}
                     >
-                      {isScoring ? '打分中...' : '开始打分'}
+                      {isScoring ? 'Scoring...' : 'Start Scoring'}
                     </button>
                   </div>
 
                   {!questionEnglish?.scoring_criteria && (
                     <p className="text-sm text-gray-500 mb-3">
-                      该题目暂无评分标准，无法进行自动打分
+                      This question has no scoring criteria and cannot be automatically graded
                     </p>
                   )}
 
                   {!editorContent.trim() && questionEnglish?.scoring_criteria && (
                     <p className="text-sm text-gray-500 mb-3">
-                      请先在上方编辑器中输入您的答案
+                      Please enter your answer in the editor above first
                     </p>
                   )}
 
@@ -799,11 +799,11 @@ function QuestionPage({ topicId, questionNumber }: { topicId: string; questionNu
                   {scoreResult && (
                     <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200">
                       <div className="flex items-center mb-2">
-                        <span className="text-lg font-semibold text-blue-600">得分：{scoreResult.score}</span>
+                        <span className="text-lg font-semibold text-blue-600">Score: {scoreResult.score}</span>
                       </div>
                       {scoreResult.feedback && (
                         <div className="mt-3">
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">详细反馈：</h4>
+                          <h4 className="text-sm font-medium text-gray-700 mb-2">Detailed Feedback:</h4>
                           <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
                             <div
                               className="markdown-content"
